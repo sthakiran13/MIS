@@ -512,8 +512,10 @@
                 liq: find(sheet, ["liquidity"]),
                 depAcc: find(sheet, ["deposit account", "deposit a/c"]),
                 loanAcc: find(sheet, ["loan account", "loan a/c"]),
+                forwarded: find(sheet, ["loan forward", "forwarded", "file forward"]),
+                renewed: find(sheet, ["file renewed", "loan renewed", "renewed"]),
                 waccDeposit: wacc.deposit,
-                waccBank: wacc.bank,
+                waccBanKs: wacc.bank,
                 waccTbill: wacc.tbill
             });
         });
@@ -534,7 +536,7 @@
                     const cell = sheet[XLSX.utils.encode_cell({ r: R, c: C })];
                     if (!cell) continue;
                     const text = String(cell.v).toLowerCase();
-                    if (keys.some(k => text.includes(k))) {
+                    if (keys.some(k => text.includes(k.toLowerCase()))) {
                         for (let i = 1; i < 5; i++) {
                             const valCell = sheet[XLSX.utils.encode_cell({ r: R, c: C + i })];
                             if (valCell && valCell.v !== undefined && !isNaN(parseFloat(valCell.v))) {
@@ -552,33 +554,84 @@
         if (!sheet || !sheet['!ref']) return { deposit: 0, bank: 0, tbill: 0 };
         try {
             const range = XLSX.utils.decode_range(sheet['!ref']);
-            let row = -1;
+            let res = { deposit: 0, bank: 0, tbill: 0 };
+            
+            // Search through all cells for WACC pattern
             for (let R = range.s.r; R <= range.e.r; R++) {
                 for (let C = range.s.c; C <= range.e.c; C++) {
                     const cell = sheet[XLSX.utils.encode_cell({ r: R, c: C })];
-                    if (cell && String(cell.v).toLowerCase().includes("wacc")) {
-                        row = R; break;
+                    if (!cell) continue;
+                    
+                    const cellText = String(cell.v).trim();
+                    
+                    // Check for Deposits with percentage
+                    if (cellText.toLowerCase() === "deposits" || cellText.toLowerCase() === "deposit") {
+                        // Look for value in the next column
+                        const valCell = sheet[XLSX.utils.encode_cell({ r: R, c: C + 1 })];
+                        if (valCell && valCell.v !== undefined) {
+                            let val = parseFloat(String(valCell.v).replace('%', '').replace(/,/g, ''));
+                            if (!isNaN(val)) {
+                                if (String(valCell.v).includes('%')) val = val / 100;
+                                res.deposit = val;
+                            }
+                        }
+                    }
+                    // Check for Bank Balance
+                    else if (cellText.toLowerCase() === "bankwacc") {
+                        const valCell = sheet[XLSX.utils.encode_cell({ r: R, c: C + 1 })];
+                        if (valCell && valCell.v !== undefined) {
+                            let val = parseFloat(String(valCell.v).replace('%', '').replace(/,/g, ''));
+                            if (!isNaN(val)) {
+                                if (String(valCell.v).includes('%')) val = val / 100;
+                                res.bank = val;
+                            }
+                        }
+                    }
+                    // Check for T-Bills
+                    else if (cellText.toLowerCase() === "t-bills" || cellText.toLowerCase() === "t bills" || cellText.toLowerCase() === "tbills") {
+                        const valCell = sheet[XLSX.utils.encode_cell({ r: R, c: C + 1 })];
+                        if (valCell && valCell.v !== undefined) {
+                            let val = parseFloat(String(valCell.v).replace('%', '').replace(/,/g, ''));
+                            if (!isNaN(val)) {
+                                if (String(valCell.v).includes('%')) val = val / 100;
+                                res.tbill = val;
+                            }
+                        }
+                    }
+                    // Also check for WACC header to find the section
+                    else if (cellText.toUpperCase().includes("WACC")) {
+                        // Look for values in subsequent rows
+                        for (let offset = 1; offset <= 10; offset++) {
+                            const labelRow = R + offset;
+                            if (labelRow > range.e.r) break;
+                            
+                            const labelCell = sheet[XLSX.utils.encode_cell({ r: labelRow, c: C })];
+                            if (!labelCell) continue;
+                            
+                            const labelText = String(labelCell.v).toLowerCase();
+                            const valCell = sheet[XLSX.utils.encode_cell({ r: labelRow, c: C + 1 })];
+                            if (!valCell) continue;
+                            
+                            let val = parseFloat(String(valCell.v).replace('%', '').replace(/,/g, ''));
+                            if (isNaN(val)) continue;
+                            if (String(valCell.v).includes('%')) val = val / 100;
+                            
+                            if (labelText.includes("deposit")) {
+                                res.deposit = val;
+                            } else if (labelText.includes("bank")) {
+                                res.bank = val;
+                            } else if (labelText.includes("t-bill") || labelText.includes("tbill")) {
+                                res.tbill = val;
+                            }
+                        }
                     }
                 }
-                if (row !== -1) break;
             }
-            let res = { deposit: 0, bank: 0, tbill: 0 };
-            if (row !== -1) {
-                for (let i = 1; i <= 5; i++) {
-                    const labelCell = sheet[XLSX.utils.encode_cell({ r: row + i, c: 0 })];
-                    const valCell = sheet[XLSX.utils.encode_cell({ r: row + i, c: 1 })];
-                    if (!labelCell || !valCell) continue;
-                    const txt = String(labelCell.v).toLowerCase();
-                    let rawVal = String(valCell.v).replace('%', '').replace(/,/g, '');
-                    let val = parseFloat(rawVal) / 100;
-                    if (isNaN(val)) val = 0;
-                    if (txt.includes("deposit")) res.deposit = val;
-                    if (txt.includes("bank")) res.bank = val;
-                    if (txt.includes("t")) res.tbill = val;
-                }
-            }
+            
+            console.log('Extracted WACC values:', res);
             return res;
         } catch (e) {
+            console.error('WACC extraction error:', e);
             return { deposit: 0, bank: 0, tbill: 0 };
         }
     }
@@ -612,7 +665,7 @@
 
     function renderAll() {
         if (!workbook) {
-            document.getElementById("kpis").innerHTML = `<div class="empty-state"><i class="fas fa-chart-line" style="font-size: 48px; color: #3b82f6;"></i><h3>Welcome to RMD MIS</h3><p>Upload an Excel file (.xlsx, .xlsm, .xls) to begin analysis</p></div>`;
+            document.getElementById("kpis").innerHTML = `<div class="empty-state"><i class="fas fa-chart-line" style="font-size: 48px; color: #3b82f6;"></i><h3>Welcome to RMD DASHBOARD</h3><p>Upload an Excel file (.xlsx, .xlsm, .xls) to begin analysis</p></div>`;
             document.getElementById("chartSection").innerHTML = "";
             document.getElementById("sheetTable").innerHTML = "";
             return;
@@ -644,6 +697,8 @@
                 ${premiumCard("💧 Liquidity %", (last.liq*100).toFixed(2), (prev.liq*100).toFixed(2), true, "fas fa-tint")}
                 ${premiumCard("👥 Deposit Accounts", last.depAcc, prev.depAcc, false, "fas fa-users")}
                 ${premiumCard("📑 Loan Accounts", last.loanAcc, prev.loanAcc, false, "fas fa-file-invoice")}
+                ${premiumCard("💵 File Forwarded", last.forwarded, prev.forwarded, false, "fas fa-file-forward")}
+                ${premiumCard("💸 File Renewed", last.renewed, prev.renewed, false, "fas fa-sync-alt")}
             </div>
         `;
 
@@ -656,7 +711,9 @@
             { title: "⚠️ NPL % Trend", data: data.map(x => x.nplRatio * 100), color: '#ff768a' },
             { title: "💧 Liquidity Ratio Trend", data: data.map(x => x.liq * 100), color: '#6c5ce7' },
             { title: "👥 Deposit Accounts Trend", data: data.map(x => x.depAcc), color: '#a29bfe' },
-            { title: "📑 Loan Accounts Trend", data: data.map(x => x.loanAcc), color: '#fd79a8' }
+            { title: "📑 Loan Accounts Trend", data: data.map(x => x.loanAcc), color: '#fd79a8' },
+            { title: "📤 File Forwarded Trend", data: data.map(x => x.forwarded), color: '#00cec9' },
+            { title: "🔄 File Renewed Trend", data: data.map(x => x.renewed), color: '#e84393' }
         ];
         
         charts.forEach(chart => {
@@ -683,11 +740,29 @@
                 labels,
                 datasets: [
                     { label: "Deposit WACC", data: data.map(x => x.waccDeposit * 100), borderColor: '#0ff1ce', backgroundColor: '#0ff1ce25', tension: 0.3, fill: true },
-                    { label: "Bank Balance WACC", data: data.map(x => x.waccBank * 100), borderColor: '#ff9966', backgroundColor: '#ff996625', tension: 0.3, fill: true },
+                    { label: "BanKs WACC", data: data.map(x => x.waccBanKs * 100), borderColor: '#ff9966', backgroundColor: '#ff996625', tension: 0.3, fill: true },
                     { label: "T-Bills WACC", data: data.map(x => x.waccTbill * 100), borderColor: '#f9ca24', backgroundColor: '#f9ca2425', tension: 0.3, fill: true }
                 ]
             },
             options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#ecf5ff' } } } }
+        });
+
+        // Additional worm graph specifically for Forwarded vs Renewed comparison
+        const wormWrapper = document.createElement("div");
+        wormWrapper.className = "chart-lux-card";
+        const wormCanvas = document.createElement("canvas");
+        wormWrapper.appendChild(wormCanvas);
+        container.appendChild(wormWrapper);
+        new Chart(wormCanvas, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    { label: "📂 File Forwarded (Worm)", data: data.map(x => x.forwarded), borderColor: '#00b894', backgroundColor: '#00b89420', borderWidth: 3, pointRadius: 4, pointBackgroundColor: '#00b894', tension: 0.2, fill: false },
+                    { label: "🔄 File Renewed (Worm)", data: data.map(x => x.renewed), borderColor: '#e17055', backgroundColor: '#e1705520', borderWidth: 3, pointRadius: 4, pointBackgroundColor: '#e17055', tension: 0.2, fill: false }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#fff' } }, tooltip: { mode: 'index', intersect: false } }, scales: { y: { title: { display: true, text: 'Count', color: '#ccc' } } } }
         });
     }
 
@@ -758,7 +833,7 @@
         
         filteredHeaders.forEach((header, idx) => {
             const headerText = header || `Column ${idx + 1}`;
-            const isNumericHeader = /(amount|balance|rate|ratio|percent|wacc|npl|liq|deposit|loan|value|total|sum|avg)/i.test(headerText);
+            const isNumericHeader = /(amount|balance|rate|ratio|percent|wacc|npl|liq|deposit|loan|value|total|sum|avg|forward|renewed)/i.test(headerText);
             const align = idx === 0 ? 'left' : (isNumericHeader ? 'right' : 'left');
             html += `<th style="text-align: ${align}">${escapeHtml(headerText)}</th>`;
         });
