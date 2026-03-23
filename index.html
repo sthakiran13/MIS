@@ -503,6 +503,14 @@
             const sheet = workbook.Sheets[name];
             if (!sheet) return;
             const wacc = extractWACC(sheet);
+            const shareCapital = find(sheet, ["share capital", "share capital fund", "capital share"]);
+            const totalLoanLossProvision = find(sheet, ["loan loss provision", "provision for loan", "llp", "loan provision"]);
+            const netNPL = find(sheet, ["net npl", "net non performing", "net non-performing"]) || (() => {
+                const grossNPL = find(sheet, ["non performing", "gross npl"]);
+                if (grossNPL > 0 && totalLoanLossProvision > 0) return Math.max(0, grossNPL - totalLoanLossProvision);
+                return 0;
+            })();
+            
             dataset.push({
                 date: name,
                 deposits: find(sheet, ["deposit"]),
@@ -514,12 +522,15 @@
                 loanAcc: find(sheet, ["loan account", "loan a/c"]),
                 forwarded: find(sheet, ["loan forward", "forwarded", "file forward"]),
                 renewed: find(sheet, ["file renewed", "loan renewed", "renewed"]),
+                netNPLtoTotalloan: find(sheet, ["Net Non Performing Loan to Total Loan (Net NPL)"]),
+                totalLLPtoTotalloan: find(sheet, ["Total Loan Loss Provision to Total NPL"]),
                 waccDeposit: wacc.deposit,
                 waccBanKs: wacc.bank,
-                waccTbill: wacc.tbill
+                waccTbill: wacc.tbill,
+                shareCapital: shareCapital,
             });
         });
-        console.log('Dataset built:', dataset);
+        console.log('Dataset built (with share capital, provision, net NPL):', dataset);
     }
 
     function getSortedSheets() {
@@ -555,85 +566,50 @@
         try {
             const range = XLSX.utils.decode_range(sheet['!ref']);
             let res = { deposit: 0, bank: 0, tbill: 0 };
-            
-            // Search through all cells for WACC pattern
             for (let R = range.s.r; R <= range.e.r; R++) {
                 for (let C = range.s.c; C <= range.e.c; C++) {
                     const cell = sheet[XLSX.utils.encode_cell({ r: R, c: C })];
                     if (!cell) continue;
-                    
                     const cellText = String(cell.v).trim();
-                    
-                    // Check for Deposits with percentage
                     if (cellText.toLowerCase() === "deposits" || cellText.toLowerCase() === "deposit") {
-                        // Look for value in the next column
                         const valCell = sheet[XLSX.utils.encode_cell({ r: R, c: C + 1 })];
                         if (valCell && valCell.v !== undefined) {
                             let val = parseFloat(String(valCell.v).replace('%', '').replace(/,/g, ''));
-                            if (!isNaN(val)) {
-                                if (String(valCell.v).includes('%')) val = val / 100;
-                                res.deposit = val;
-                            }
+                            if (!isNaN(val)) { if (String(valCell.v).includes('%')) val = val / 100; res.deposit = val; }
                         }
-                    }
-                    // Check for Bank Balance
-                    else if (cellText.toLowerCase() === "bankwacc") {
+                    } else if (cellText.toLowerCase() === "bankwacc") {
                         const valCell = sheet[XLSX.utils.encode_cell({ r: R, c: C + 1 })];
                         if (valCell && valCell.v !== undefined) {
                             let val = parseFloat(String(valCell.v).replace('%', '').replace(/,/g, ''));
-                            if (!isNaN(val)) {
-                                if (String(valCell.v).includes('%')) val = val / 100;
-                                res.bank = val;
-                            }
+                            if (!isNaN(val)) { if (String(valCell.v).includes('%')) val = val / 100; res.bank = val; }
                         }
-                    }
-                    // Check for T-Bills
-                    else if (cellText.toLowerCase() === "t-bills" || cellText.toLowerCase() === "t bills" || cellText.toLowerCase() === "tbills") {
+                    } else if (cellText.toLowerCase() === "t-bills" || cellText.toLowerCase() === "t bills" || cellText.toLowerCase() === "tbills") {
                         const valCell = sheet[XLSX.utils.encode_cell({ r: R, c: C + 1 })];
                         if (valCell && valCell.v !== undefined) {
                             let val = parseFloat(String(valCell.v).replace('%', '').replace(/,/g, ''));
-                            if (!isNaN(val)) {
-                                if (String(valCell.v).includes('%')) val = val / 100;
-                                res.tbill = val;
-                            }
+                            if (!isNaN(val)) { if (String(valCell.v).includes('%')) val = val / 100; res.tbill = val; }
                         }
-                    }
-                    // Also check for WACC header to find the section
-                    else if (cellText.toUpperCase().includes("WACC")) {
-                        // Look for values in subsequent rows
+                    } else if (cellText.toUpperCase().includes("WACC")) {
                         for (let offset = 1; offset <= 10; offset++) {
                             const labelRow = R + offset;
                             if (labelRow > range.e.r) break;
-                            
                             const labelCell = sheet[XLSX.utils.encode_cell({ r: labelRow, c: C })];
                             if (!labelCell) continue;
-                            
                             const labelText = String(labelCell.v).toLowerCase();
                             const valCell = sheet[XLSX.utils.encode_cell({ r: labelRow, c: C + 1 })];
                             if (!valCell) continue;
-                            
                             let val = parseFloat(String(valCell.v).replace('%', '').replace(/,/g, ''));
                             if (isNaN(val)) continue;
                             if (String(valCell.v).includes('%')) val = val / 100;
-                            
-                            if (labelText.includes("deposit")) {
-                                res.deposit = val;
-                            } else if (labelText.includes("bank")) {
-                                res.bank = val;
-                            } else if (labelText.includes("t-bill") || labelText.includes("tbill")) {
-                                res.tbill = val;
-                            }
+                            if (labelText.includes("deposit")) res.deposit = val;
+                            else if (labelText.includes("bank")) res.bank = val;
+                            else if (labelText.includes("t-bill") || labelText.includes("tbill")) res.tbill = val;
                         }
                     }
                 }
             }
-            
-            console.log('Extracted WACC values:', res);
             return res;
-        } catch (e) {
-            console.error('WACC extraction error:', e);
-            return { deposit: 0, bank: 0, tbill: 0 };
-        }
+        } catch (e) { return { deposit: 0, bank: 0, tbill: 0 }; }
     }
 
     function populateDropdowns() {
@@ -650,9 +626,7 @@
     function populateSheetDropdown() {
         sheetSelect.innerHTML = "";
         if (!workbook) return;
-        workbook.SheetNames.forEach(n => {
-            sheetSelect.add(new Option(n, n));
-        });
+        workbook.SheetNames.forEach(n => { sheetSelect.add(new Option(n, n)); });
         if (sheetSelect.options.length) sheetSelect.selectedIndex = sheetSelect.options.length - 1;
     }
 
@@ -670,11 +644,9 @@
             document.getElementById("sheetTable").innerHTML = "";
             return;
         }
-        
         document.getElementById("kpis").innerHTML = "";
         document.getElementById("chartSection").innerHTML = "";
         document.getElementById("sheetTable").innerHTML = "";
-        
         if (modeToggle.checked) renderSummary();
         else renderSnapshot();
     }
@@ -687,7 +659,9 @@
         }
         const last = data.at(-1);
         const prev = data.at(-2) || last;
-
+        
+        const netNPLRatio = last.loans > 0 ? ((last.netNPL / last.loans) * 100) : 0;
+        
         document.getElementById("kpis").innerHTML = `
             <div class="kpi-grid">
                 ${premiumCard("💰 Deposits", last.deposits, prev.deposits, false, "fas fa-coins")}
@@ -699,6 +673,9 @@
                 ${premiumCard("📑 Loan Accounts", last.loanAcc, prev.loanAcc, false, "fas fa-file-invoice")}
                 ${premiumCard("💵 File Forwarded", last.forwarded, prev.forwarded, false, "fas fa-file-forward")}
                 ${premiumCard("💸 File Renewed", last.renewed, prev.renewed, false, "fas fa-sync-alt")}
+                ${premiumCard("🏛️ Share Capital", last.shareCapital, prev.shareCapital, false, "fas fa-building")}
+                ${premiumCard("⚠️ Net NPL to Loans %", (last.netNPLtoTotalloan*100).toFixed(2), (prev.netNPLtoTotalloan*100).toFixed(2), true, "fas fa-chart-simple")}
+                ${premiumCard("🛡️ Provision Coverage %", (last.totalLLPtoTotalloan*100).toFixed(2), (prev.totalLLPtoTotalloan*100).toFixed(2), true, "fas fa-shield-alt")}
             </div>
         `;
 
@@ -713,7 +690,10 @@
             { title: "👥 Deposit Accounts Trend", data: data.map(x => x.depAcc), color: '#a29bfe' },
             { title: "📑 Loan Accounts Trend", data: data.map(x => x.loanAcc), color: '#fd79a8' },
             { title: "📤 File Forwarded Trend", data: data.map(x => x.forwarded), color: '#00cec9' },
-            { title: "🔄 File Renewed Trend", data: data.map(x => x.renewed), color: '#e84393' }
+            { title: "🔄 File Renewed Trend", data: data.map(x => x.renewed), color: '#e84393' },
+            { title: "🏛️ Share Capital Trend", data: data.map(x => x.shareCapital), color: '#f1c40f' },
+            { title: "📉 Net NPL to Loans %", data: data.map(x => x.netNPLtoTotalloan), color: '#ff9ff3' },
+            { title: "🛡️ Provision Coverage (LLP/NPL) %", data: data.map(x => x.totalLLPtoTotalloan), color: '#54a0ff' }
         ];
         
         charts.forEach(chart => {
@@ -742,12 +722,12 @@
                     { label: "Deposit WACC", data: data.map(x => x.waccDeposit * 100), borderColor: '#0ff1ce', backgroundColor: '#0ff1ce25', tension: 0.3, fill: true },
                     { label: "BanKs WACC", data: data.map(x => x.waccBanKs * 100), borderColor: '#ff9966', backgroundColor: '#ff996625', tension: 0.3, fill: true },
                     { label: "T-Bills WACC", data: data.map(x => x.waccTbill * 100), borderColor: '#f9ca24', backgroundColor: '#f9ca2425', tension: 0.3, fill: true }
+                   
                 ]
             },
             options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#ecf5ff' } } } }
         });
 
-        // Additional worm graph specifically for Forwarded vs Renewed comparison
         const wormWrapper = document.createElement("div");
         wormWrapper.className = "chart-lux-card";
         const wormCanvas = document.createElement("canvas");
@@ -758,8 +738,8 @@
             data: {
                 labels,
                 datasets: [
-                    { label: "📂 File Forwarded (Worm)", data: data.map(x => x.forwarded), borderColor: '#00b894', backgroundColor: '#00b89420', borderWidth: 3, pointRadius: 4, pointBackgroundColor: '#00b894', tension: 0.2, fill: false },
-                    { label: "🔄 File Renewed (Worm)", data: data.map(x => x.renewed), borderColor: '#e17055', backgroundColor: '#e1705520', borderWidth: 3, pointRadius: 4, pointBackgroundColor: '#e17055', tension: 0.2, fill: false }
+                    { label: "📂 File Forwarded (Worm)", data: data.map(x => x.forwarded), borderColor: '#00b894', backgroundColor: '#00b89420', borderWidth: 3, pointRadius: 4, tension: 0.2, fill: false },
+                    { label: "🔄 File Renewed (Worm)", data: data.map(x => x.renewed), borderColor: '#e17055', backgroundColor: '#e1705520', borderWidth: 3, pointRadius: 4, tension: 0.2, fill: false }
                 ]
             },
             options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#fff' } }, tooltip: { mode: 'index', intersect: false } }, scales: { y: { title: { display: true, text: 'Count', color: '#ccc' } } } }
@@ -774,7 +754,6 @@
         let arrow = diff >= 0 ? "↑" : "↓";
         let formattedDiff = (isPct ? Math.abs(diff).toFixed(2) + "%" : Math.abs(diff).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
         let displayValue = isPct ? value + "%" : (isNaN(value) ? "0" : Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-        
         return `<div class="premium-card"><div class="card-title"><i class="${icon}" style="color:#56c8ff;"></i> ${title}</div><div class="card-value">${displayValue}</div>${prevVal !== undefined && prevVal !== 0 && !isNaN(prevVal) ? `<div class="trend ${trendClass}"><span>${arrow} ${formattedDiff}</span> vs previous</div>` : `<div class="trend">baseline</div>`}</div>`;
     }
 
@@ -783,145 +762,76 @@
         if (!workbook || !sheetName) return;
         const sheet = workbook.Sheets[sheetName];
         if (!sheet) return;
-        
         let json = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
         if (!json || json.length === 0) {
             document.getElementById("sheetTable").innerHTML = `<div class="empty-state">✨ No data available in this sheet ✨</div>`;
             return;
         }
-        
         const headers = json[0] || [];
         let dataRows = json.slice(1).filter(row => row.some(cell => cell !== "" && cell !== undefined && cell !== null));
-        
-        // Remove blank columns
         const nonBlankColumns = [];
         for (let colIdx = 0; colIdx < headers.length; colIdx++) {
             let hasData = false;
             for (let row of dataRows) {
-                const cell = row[colIdx];
-                if (cell !== undefined && cell !== null && cell !== "" && cell !== " ") {
-                    hasData = true;
-                    break;
-                }
+                if (row[colIdx] !== undefined && row[colIdx] !== null && row[colIdx] !== "" && row[colIdx] !== " ") { hasData = true; break; }
             }
-            if (hasData || colIdx === 0) {
-                nonBlankColumns.push(colIdx);
-            }
+            if (hasData || colIdx === 0) nonBlankColumns.push(colIdx);
         }
-        
         const filteredHeaders = nonBlankColumns.map(idx => headers[idx]);
         const filteredDataRows = dataRows.map(row => nonBlankColumns.map(idx => row[idx]));
         const isSummarySheet = filteredDataRows.length <= 20 && filteredHeaders.length <= 15;
-        
-        let html = `
-            <div class="snapshot-header">
-                <div class="snapshot-title">
-                    <i class="fas fa-table"></i>
-                    <h3>${isSummarySheet ? '📊 Summary View' : '📋 Detailed Data View'}</h3>
-                </div>
-                <div class="sheet-badge">
-                    <i class="fas fa-file-alt"></i> ${sheetName} • ${filteredDataRows.length} records • ${filteredHeaders.length} fields
-                    ${nonBlankColumns.length < headers.length ? `<span style="margin-left: 10px; color: #0ff;">✨ Removed ${headers.length - nonBlankColumns.length} empty columns</span>` : ''}
-                </div>
-            </div>
-            <div class="premium-table-container">
-                <div class="table-wrapper">
-                    <table class="premium-table">
-                        <thead>
-                            <tr>
-        `;
-        
+        let html = `<div class="snapshot-header"><div class="snapshot-title"><i class="fas fa-table"></i><h3>${isSummarySheet ? '📊 Summary View' : '📋 Detailed Data View'}</h3></div><div class="sheet-badge"><i class="fas fa-file-alt"></i> ${sheetName} • ${filteredDataRows.length} records • ${filteredHeaders.length} fields</div></div><div class="premium-table-container"><div class="table-wrapper"><table class="premium-table"><thead><tr>`;
         filteredHeaders.forEach((header, idx) => {
             const headerText = header || `Column ${idx + 1}`;
-            const isNumericHeader = /(amount|balance|rate|ratio|percent|wacc|npl|liq|deposit|loan|value|total|sum|avg|forward|renewed)/i.test(headerText);
+            const isNumericHeader = /(amount|balance|rate|ratio|percent|wacc|npl|liq|deposit|loan|value|total|sum|avg|forward|renewed|capital|provision)/i.test(headerText);
             const align = idx === 0 ? 'left' : (isNumericHeader ? 'right' : 'left');
             html += `<th style="text-align: ${align}">${escapeHtml(headerText)}</th>`;
         });
-        
         html += `</tr></thead><tbody>`;
-        
         let stats = { numericCount: 0, positiveCount: 0, negativeCount: 0, percentCount: 0 };
-        
         filteredDataRows.forEach((row) => {
             if (row.length === 0) return;
             html += `<tr>`;
-            
             row.forEach((cell, colIdx) => {
                 let val = (cell === undefined || cell === null) ? "" : cell;
                 const headerName = filteredHeaders[colIdx] ? String(filteredHeaders[colIdx]).toLowerCase() : "";
                 const isFirstCol = colIdx === 0;
-                
                 let displayValue = val;
                 let textAlign = isFirstCol ? 'left' : 'right';
                 let valueClass = '';
-                
                 if (typeof val === 'number' || (!isNaN(val) && val !== "" && val !== null && val !== " ")) {
                     const numVal = parseFloat(val);
                     stats.numericCount++;
-                    
-                    const isPercentage = headerName.includes('%') || headerName.includes('ratio') || 
-                                         headerName.includes('rate') || headerName.includes('wacc') ||
-                                         headerName.includes('npl') || headerName.includes('liq') ||
-                                         (numVal > 0 && numVal < 1.5 && !headerName.includes('account') && !headerName.includes('count'));
-                    
+                    const isPercentage = headerName.includes('%') || headerName.includes('ratio') || headerName.includes('rate') || headerName.includes('wacc') || headerName.includes('npl') || headerName.includes('liq') || (numVal > 0 && numVal < 1.5 && !headerName.includes('account') && !headerName.includes('count'));
                     if (isPercentage) {
                         displayValue = (numVal * 100).toFixed(2) + "%";
                         valueClass = "percentage-value numeric-value";
                         stats.percentCount++;
-                    } 
-                    else if (headerName.includes('amount') || headerName.includes('balance') || 
-                             headerName.includes('deposit') || headerName.includes('loan') ||
-                             Math.abs(numVal) > 1000) {
+                    } else if (headerName.includes('amount') || headerName.includes('balance') || headerName.includes('deposit') || headerName.includes('loan') || headerName.includes('capital') || Math.abs(numVal) > 1000) {
                         displayValue = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(numVal);
                         valueClass = "currency-value numeric-value";
-                    } 
-                    else {
+                    } else {
                         displayValue = new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(numVal);
                         valueClass = "numeric-value";
                     }
-                    
-                    if (headerName.includes('growth') || headerName.includes('change') || 
-                        headerName.includes('trend') || headerName.includes('variance')) {
-                        if (numVal > 0) {
-                            valueClass += " positive-value";
-                            stats.positiveCount++;
-                        } else if (numVal < 0) {
-                            valueClass += " negative-value";
-                            stats.negativeCount++;
-                        }
+                    if (headerName.includes('growth') || headerName.includes('change') || headerName.includes('trend')) {
+                        if (numVal > 0) { valueClass += " positive-value"; stats.positiveCount++; }
+                        else if (numVal < 0) { valueClass += " negative-value"; stats.negativeCount++; }
                     }
-                    
                     textAlign = 'right';
-                } 
-                else if (typeof val === 'string' && val.trim() !== "") {
+                } else if (typeof val === 'string' && val.trim() !== "") {
                     displayValue = val;
                     textAlign = isFirstCol ? 'left' : 'left';
                     valueClass = "text-primary";
-                } 
-                else if (val === "" || val === null || val === undefined) {
+                } else {
                     displayValue = "—";
                     textAlign = isFirstCol ? 'left' : 'center';
                 }
-                
                 html += `<td style="text-align: ${textAlign}" class="${valueClass}">${escapeHtml(String(displayValue))}</td>`;
             });
-            
             html += `</tr>`;
         });
-        
-        html += `</tbody>
-                    </table>
-                </div>
-                <div class="table-stats">
-                    <div class="stat-item"><i class="fas fa-chart-simple"></i><span>${filteredDataRows.length} rows × ${filteredHeaders.length} columns</span></div>
-                    <div class="stat-item"><i class="fas fa-calculator"></i><span>Numeric fields: ${stats.numericCount}</span></div>
-                    ${stats.percentCount > 0 ? `<div class="stat-item"><i class="fas fa-percent" style="color: #ffd966;"></i><span>Ratios/Percentages: ${stats.percentCount}</span></div>` : ''}
-                    ${stats.positiveCount > 0 ? `<div class="stat-item"><i class="fas fa-arrow-up" style="color: #2effb0;"></i><span>Positive indicators: ${stats.positiveCount}</span></div>` : ''}
-                    ${stats.negativeCount > 0 ? `<div class="stat-item"><i class="fas fa-arrow-down" style="color: #ff6a6a;"></i><span>Negative indicators: ${stats.negativeCount}</span></div>` : ''}
-                    <div class="stat-item"><i class="fas fa-mouse-pointer"></i><span>Hover rows for details</span></div>
-                </div>
-            </div>`;
-        
+        html += `</tbody></table></div><div class="table-stats"><div class="stat-item"><i class="fas fa-chart-simple"></i><span>${filteredDataRows.length} rows × ${filteredHeaders.length} columns</span></div><div class="stat-item"><i class="fas fa-calculator"></i><span>Numeric fields: ${stats.numericCount}</span></div>${stats.percentCount > 0 ? `<div class="stat-item"><i class="fas fa-percent" style="color: #ffd966;"></i><span>Ratios: ${stats.percentCount}</span></div>` : ''}${stats.positiveCount > 0 ? `<div class="stat-item"><i class="fas fa-arrow-up" style="color: #2effb0;"></i><span>Positive: ${stats.positiveCount}</span></div>` : ''}${stats.negativeCount > 0 ? `<div class="stat-item"><i class="fas fa-arrow-down" style="color: #ff6a6a;"></i><span>Negative: ${stats.negativeCount}</span></div>` : ''}<div class="stat-item"><i class="fas fa-mouse-pointer"></i><span>Hover rows</span></div></div></div>`;
         document.getElementById("sheetTable").innerHTML = html;
     }
     
