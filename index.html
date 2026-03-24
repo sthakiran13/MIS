@@ -522,6 +522,7 @@
                 loanAcc: find(sheet, ["loan account", "loan a/c"]),
                 forwarded: find(sheet, ["loan forward", "forwarded", "file forward"]),
                 renewed: find(sheet, ["file renewed", "loan renewed", "renewed"]),
+                adDitionalTopUp: find(sheet, ["additional-topup/ memo", "topup", "memo"]),
                 netNPLtoTotalloan: find(sheet, ["Net Non Performing Loan to Total Loan (Net NPL)"]),
                 totalLLPtoTotalloan: find(sheet, ["Total Loan Loss Provision to Total NPL"]),
                 waccDeposit: wacc.deposit,
@@ -673,6 +674,7 @@
                 ${premiumCard("📑 Loan Accounts", last.loanAcc, prev.loanAcc, false, "fas fa-file-invoice")}
                 ${premiumCard("💵 File Forwarded", last.forwarded, prev.forwarded, false, "fas fa-file-forward")}
                 ${premiumCard("💸 File Renewed", last.renewed, prev.renewed, false, "fas fa-sync-alt")}
+                ${premiumCard("🔝 Additional Topup/ Memo", last.totalLLPtoTotalloan, prev.totalLLPtoTotalloan, false, "fas fa-sync-alt")}
                 ${premiumCard("🏛️ Share Capital", last.shareCapital, prev.shareCapital, false, "fas fa-building")}
                 ${premiumCard("⚠️ Net NPL to Loans %", (last.netNPLtoTotalloan*100).toFixed(2), (prev.netNPLtoTotalloan*100).toFixed(2), true, "fas fa-chart-simple")}
                 ${premiumCard("🛡️ Provision Coverage %", (last.totalLLPtoTotalloan*100).toFixed(2), (prev.totalLLPtoTotalloan*100).toFixed(2), true, "fas fa-shield-alt")}
@@ -691,6 +693,7 @@
             { title: "📑 Loan Accounts Trend", data: data.map(x => x.loanAcc), color: '#fd79a8' },
             { title: "📤 File Forwarded Trend", data: data.map(x => x.forwarded), color: '#00cec9' },
             { title: "🔄 File Renewed Trend", data: data.map(x => x.renewed), color: '#e84393' },
+            { title: "🔝 Loan Topup Trend", data: data.map(x => x.totalLLPtoTotalloan), color: '#e84393' },
             { title: "🏛️ Share Capital Trend", data: data.map(x => x.shareCapital), color: '#f1c40f' },
             { title: "📉 Net NPL to Loans %", data: data.map(x => x.netNPLtoTotalloan), color: '#ff9ff3' },
             { title: "🛡️ Provision Coverage (LLP/NPL) %", data: data.map(x => x.totalLLPtoTotalloan), color: '#54a0ff' }
