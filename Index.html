@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Risk Depart | Financial Intelligence Dashboard</title>
+    <link rel="icon" type="image/png" href="https://scontent.fktm21-2.fna.fbcdn.net/v/t39.30808-6/347811471_733097998551692_7711165472110549120_n.jpg?_nc_cat=105&ccb=1-7&_nc_sid=1d70fc&_nc_ohc=R01Dd6Pzi2AQ7kNvwFdjkVd&_nc_oc=Adr_XMo9JLZ9qPesdTzIHAmax244XNsg0BfAd7QyyRY0Hlq3IXgjCSTDqBDOVsReYsKHgIpsBUwi4kf_g5xs2AUW&_nc_zt=23&_nc_ht=scontent.fktm21-2.fna&_nc_gid=bdW__kaZFoqZDH8NdG6aAQ&_nc_ss=7a30f&oh=00_AfxDToFoMSjTye7OyJHn_af0ITK2c5qiD5X4a4erT--5Sg&oe=69C48323">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,200;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            background: radial-gradient(circle at 10% 30%, #0a0c1a, #03050c);
+            color: #f0f3ff;
+            padding: 28px 32px;
+            min-height: 100vh;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            padding: 18px 28px;
+            margin-bottom: 32px;
+            background: rgba(12, 18, 32, 0.65);
+            backdrop-filter: blur(20px);
+            border-radius: 2rem;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            box-shadow: 0 12px 28px -8px rgba(0,0,0,0.5);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .brand img {
+            height: 52px;
+            width: auto;
+            border-radius: 18px;
+            box-shadow: 0 12px 22px rgba(0,0,0,0.4);
+            transition: transform 0.2s;
+        }
+
+        .brand h2 {
+            font-weight: 600;
+            background: linear-gradient(135deg, #fff, #8ab3ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: -0.3px;
+            font-size: 1.7rem;
+        }
+
+        .controls {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .file-upload-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .glow-select, .glow-input, .file-upload-label {
+            background: rgba(20, 28, 48, 0.8);
+            border: 1px solid rgba(72, 187, 255, 0.5);
+            padding: 10px 18px;
+            border-radius: 40px;
+            color: white;
+            font-weight: 500;
+            font-size: 0.85rem;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            transition: all 0.2s;
+            font-family: 'Inter', monospace;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .glow-select:hover, .glow-input:hover, .file-upload-label:hover {
+            background: rgba(48, 88, 148, 0.5);
+            border-color: #3b82f6;
+            box-shadow: 0 0 8px rgba(59,130,246,0.4);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .toggle-switch {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(0,0,0,0.35);
+            padding: 6px 18px;
+            border-radius: 60px;
+            backdrop-filter: blur(4px);
+        }
+
+        .file-info {
+            background: rgba(0, 255, 150, 0.15);
+            border-radius: 40px;
+            padding: 6px 16px;
+            font-size: 0.8rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border-left: 2px solid #00ffaa;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 24px;
+            margin: 30px 0 20px;
+        }
+
+        .premium-card {
+            background: linear-gradient(145deg, rgba(20, 28, 48, 0.85), rgba(10, 14, 28, 0.9));
+            backdrop-filter: blur(12px);
+            border-radius: 28px;
+            padding: 24px 22px;
+            border: 1px solid rgba(80, 180, 255, 0.25);
+            box-shadow: 0 15px 35px -12px black;
+            transition: all 0.25s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            min-width: 0;
+        }
+
+        .premium-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(0, 200, 255, 0.6);
+            box-shadow: 0 22px 40px -12px #00a6ff40;
+        }
+
+        .card-title {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-weight: 600;
+            color: #a6c1ff;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-value {
+            font-size: 1.9rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #ffffff, #b9e0ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 12px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            line-height: 1.3;
+        }
+
+        .trend {
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 14px;
+            border-radius: 40px;
+            background: rgba(0,0,0,0.4);
+        }
+
+        .trend-up { color: #2effb0; }
+        .trend-down { color: #ff6a6a; }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 28px;
+            margin-top: 32px;
+        }
+
+        .chart-lux-card {
+            background: rgba(8, 12, 24, 0.65);
+            backdrop-filter: blur(16px);
+            border-radius: 28px;
+            padding: 20px 18px;
+            border: 1px solid rgba(0, 255, 200, 0.2);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .chart-lux-card:hover {
+            border-color: #0ff5aa80;
+            transform: scale(1.01);
+            box-shadow: 0 12px 28px -12px cyan;
+        }
+
+        .snapshot-header {
+            margin: 40px 0 24px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            padding: 0 8px;
+        }
+
+        .snapshot-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .snapshot-title i {
+            font-size: 28px;
+            color: #3b82f6;
+            background: rgba(59,130,246,0.2);
+            padding: 12px;
+            border-radius: 18px;
+        }
+
+        .snapshot-title h3 {
+            font-size: 1.6rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #fff, #8ab3ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .sheet-badge {
+            background: rgba(0, 255, 200, 0.15);
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border: 1px solid rgba(0, 255, 200, 0.3);
+        }
+
+        .premium-table-container {
+            background: linear-gradient(135deg, rgba(15, 25, 45, 0.8), rgba(8, 12, 28, 0.9));
+            backdrop-filter: blur(20px);
+            border-radius: 32px;
+            border: 1px solid rgba(72, 187, 255, 0.25);
+            overflow: hidden;
+            box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.6);
+            transition: all 0.3s ease;
+            animation: fadeInUp 0.5s ease-out;
+        }
+
+        .premium-table-container:hover {
+            border-color: rgba(0, 200, 255, 0.5);
+            box-shadow: 0 30px 55px -15px rgba(0, 200, 255, 0.2);
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            max-height: 65vh;
+            overflow-y: auto;
+        }
+
+        .premium-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            min-width: 100%;
+        }
+
+        .premium-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .premium-table th {
+            text-align: left;
+            padding: 18px 20px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: #b8dcff;
+            background: linear-gradient(135deg, rgba(20, 35, 60, 0.95), rgba(15, 25, 45, 0.95));
+            backdrop-filter: blur(12px);
+            border-bottom: 2px solid rgba(0, 212, 255, 0.4);
+            white-space: nowrap;
+        }
+
+        .premium-table td {
+            padding: 14px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.2s ease;
+            background: transparent;
+            white-space: nowrap;
+        }
+
+        .premium-table td:first-child {
+            white-space: normal;
+            word-break: break-word;
+            max-width: 300px;
+        }
+
+        .premium-table td.text-left { text-align: left; }
+        .premium-table td.text-right { text-align: right; }
+        .premium-table td.text-center { text-align: center; }
+
+        .premium-table tbody tr:hover {
+            background: rgba(0, 200, 255, 0.08);
+        }
+
+        .numeric-value {
+            font-family: 'Inter', monospace;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
+
+        .currency-value {
+            color: #6c5ce7;
+            font-weight: 600;
+        }
+
+        .percentage-value {
+            color: #ffd966;
+            font-weight: 600;
+        }
+
+        .positive-value {
+            color: #2effb0;
+        }
+
+        .negative-value {
+            color: #ff6a6a;
+        }
+
+        .text-primary {
+            color: #a6c1ff;
+            font-weight: 500;
+        }
+
+        .table-stats {
+            padding: 16px 24px;
+            background: rgba(0, 0, 0, 0.4);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            font-size: 0.8rem;
+            color: #8a9fd1;
+        }
+
+        .stat-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 32px;
+            backdrop-filter: blur(8px);
+        }
+
+        .table-wrapper::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-thumb {
+            background: #3b82f6;
+            border-radius: 10px;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            body { padding: 18px; }
+            .header { flex-direction: column; gap: 18px; align-items: stretch; }
+            .controls { justify-content: center; }
+            .chart-grid { grid-template-columns: 1fr; }
+            .card-value { font-size: 1.5rem; }
+            .premium-card { padding: 18px 16px; }
+            .premium-table th, .premium-table td {
+                padding: 10px 12px;
+                font-size: 0.75rem;
+            }
+            .snapshot-title h3 { font-size: 1.2rem; }
+            .premium-table td:first-child {
+                max-width: 150px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="brand">
+        <img src="https://ncbl.coop/ncbl/images/ncbllogo.png" alt="NCBL">
+        <h2><i class="fas fa-chart-line" style="margin-right: 8px; color:#3b82f6;"></i>Risk Management Department · FINANCIAL MIS DASHBOARD</h2>
+    </div>
+    <div class="controls">
+        <div class="file-upload-wrapper">
+            <input type="file" id="fileInput" accept=".xlsx, .xlsm, .xls, .csv">
+            <label for="fileInput" class="file-upload-label">
+                <i class="fas fa-cloud-upload-alt"></i> Upload Excel
+            </label>
+        </div>
+        <div id="fileInfo" class="file-info" style="display: none;">
+            <i class="fas fa-file-excel"></i> <span id="fileName"></span>
+        </div>
+        <select id="fromDate" class="glow-select"></select>
+        <select id="toDate" class="glow-select"></select>
+        <select id="sheetSelect" class="glow-select" style="display:none;"></select>
+        <div class="toggle-switch">
+            <i class="fas fa-chart-simple"></i>
+            <label for="modeToggle">Summary Mode</label>
+            <input type="checkbox" id="modeToggle" checked style="width: 18px; height: 18px; cursor:pointer;">
+        </div>
+    </div>
+</div>
+
+<div id="kpis"></div>
+<div id="chartSection" class="chart-grid"></div>
+<div id="sheetTable"></div>
+
+<script>
+    let workbook, dataset = [];
+
+    fileInput.onchange = e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('fileInfo').style.display = 'inline-flex';
+        
+        const reader = new FileReader();
+        reader.onload = evt => {
+            try {
+                const data = new Uint8Array(evt.target.result);
+                workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                buildDataset();
+                populateDropdowns();
+                renderAll();
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('kpis').innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #ff6a6a;"></i><h3>Error Loading File</h3><p>${error.message}</p></div>`;
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    };
+
+    modeToggle.onchange = () => {
+        const isSummary = modeToggle.checked;
+        sheetSelect.style.display = isSummary ? "none" : "inline-block";
+        fromDate.style.display = isSummary ? "inline-block" : "none";
+        toDate.style.display = isSummary ? "inline-block" : "none";
+        if (!isSummary && workbook) populateSheetDropdown();
+        renderAll();
+    };
+
+    fromDate.onchange = renderAll;
+    toDate.onchange = renderAll;
+    sheetSelect.onchange = renderAll;
+
+    function buildDataset() {
+        dataset = [];
+        const sortedSheets = getSortedSheets();
+        sortedSheets.forEach(name => {
+            const sheet = workbook.Sheets[name];
+            if (!sheet) return;
+            const wacc = extractWACC(sheet);
+            const shareCapital = find(sheet, ["share capital", "share capital fund", "capital share"]);
+            const totalLoanLossProvision = find(sheet, ["loan loss provision", "provision for loan", "llp", "loan provision"]);
+            const netNPL = find(sheet, ["net npl", "net non performing", "net non-performing"]) || (() => {
+                const grossNPL = find(sheet, ["non performing", "gross npl"]);
+                if (grossNPL > 0 && totalLoanLossProvision > 0) return Math.max(0, grossNPL - totalLoanLossProvision);
+                return 0;
+            })();
+            
+            dataset.push({
+                date: name,
+                deposits: find(sheet, ["deposit"]),
+                loans: find(sheet, ["loan"]),
+                npl: find(sheet, ["non performing"]),
+                nplRatio: find(sheet, ["npl"]),
+                liq: find(sheet, ["liquidity"]),
+                depAcc: find(sheet, ["deposit account", "deposit a/c"]),
+                loanAcc: find(sheet, ["loan account", "loan a/c"]),
+                forwarded: find(sheet, ["loan forward", "forwarded", "file forward"]),
+                renewed: find(sheet, ["file renewed", "loan renewed", "renewed"]),
+                adDitionalTopUp: find(sheet, ["additional-topup/ memo", "topup", "memo"]),
+                netNPLtoTotalloan: find(sheet, ["Net Non Performing Loan to Total Loan (Net NPL)"]),
+                totalLLPtoTotalloan: find(sheet, ["Total Loan Loss Provision to Total NPL"]),
+                waccDeposit: wacc.deposit,
+                waccBanKs: wacc.bank,
+                waccTbill: wacc.tbill,
+                shareCapital: shareCapital,
+            });
+        });
+        console.log('Dataset built (with share capital, provision, net NPL):', dataset);
+    }
+
+    function getSortedSheets() {
+        if (!workbook) return [];
+        return workbook.SheetNames.filter(n => /\d+/.test(n)).sort();
+    }
+
+    function find(sheet, keys) {
+        if (!sheet || !sheet['!ref']) return 0;
+        try {
+            const range = XLSX.utils.decode_range(sheet['!ref']);
+            for (let R = range.s.r; R <= range.e.r; R++) {
+                for (let C = range.s.c; C <= range.e.c; C++) {
+                    const cell = sheet[XLSX.utils.encode_cell({ r: R, c: C })];
+                    if (!cell) continue;
+                    const text = String(cell.v).toLowerCase();
+                    if (keys.some(k => text.includes(k.toLowerCase()))) {
+                        for (let i = 1; i < 5; i++) {
+                            const valCell = sheet[XLSX.utils.encode_cell({ r: R, c: C + i })];
+                            if (valCell && valCell.v !== undefined && !isNaN(parseFloat(valCell.v))) {
+                                return parseFloat(valCell.v);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e) {}
+        return 0;
+    }
+
+    function extractWACC(sheet) {
+        if (!sheet || !sheet['!ref']) return { deposit: 0, bank: 0, tbill: 0 };
+        try {
+            const range = XLSX.utils.decode_range(sheet['!ref']);
+            let res = { deposit: 0, bank: 0, tbill: 0 };
+            for (let R = range.s.r; R <= range.e.r; R++) {
+                for (let C = range.s.c; C <= range.e.c; C++) {
+                    const cell = sheet[XLSX.utils.encode_cell({ r: R, c: C })];
+                    if (!cell) continue;
+                    const cellText = String(cell.v).trim();
+                    if (cellText.toLowerCase() === "deposits" || cellText.toLowerCase() === "deposit") {
+                        const valCell = sheet[XLSX.utils.encode_cell({ r: R, c: C + 1 })];
+                        if (valCell && valCell.v !== undefined) {
+                            let val = parseFloat(String(valCell.v).replace('%', '').replace(/,/g, ''));
+                            if (!isNaN(val)) { if (String(valCell.v).includes('%')) val = val / 100; res.deposit = val; }
+                        }
+                    } else if (cellText.toLowerCase() === "bankwacc") {
+                        const valCell = sheet[XLSX.utils.encode_cell({ r: R, c: C + 1 })];
+                        if (valCell && valCell.v !== undefined) {
+                            let val = parseFloat(String(valCell.v).replace('%', '').replace(/,/g, ''));
+                            if (!isNaN(val)) { if (String(valCell.v).includes('%')) val = val / 100; res.bank = val; }
+                        }
+                    } else if (cellText.toLowerCase() === "t-bills" || cellText.toLowerCase() === "t bills" || cellText.toLowerCase() === "tbills") {
+                        const valCell = sheet[XLSX.utils.encode_cell({ r: R, c: C + 1 })];
+                        if (valCell && valCell.v !== undefined) {
+                            let val = parseFloat(String(valCell.v).replace('%', '').replace(/,/g, ''));
+                            if (!isNaN(val)) { if (String(valCell.v).includes('%')) val = val / 100; res.tbill = val; }
+                        }
+                    } else if (cellText.toUpperCase().includes("WACC")) {
+                        for (let offset = 1; offset <= 10; offset++) {
+                            const labelRow = R + offset;
+                            if (labelRow > range.e.r) break;
+                            const labelCell = sheet[XLSX.utils.encode_cell({ r: labelRow, c: C })];
+                            if (!labelCell) continue;
+                            const labelText = String(labelCell.v).toLowerCase();
+                            const valCell = sheet[XLSX.utils.encode_cell({ r: labelRow, c: C + 1 })];
+                            if (!valCell) continue;
+                            let val = parseFloat(String(valCell.v).replace('%', '').replace(/,/g, ''));
+                            if (isNaN(val)) continue;
+                            if (String(valCell.v).includes('%')) val = val / 100;
+                            if (labelText.includes("deposit")) res.deposit = val;
+                            else if (labelText.includes("bank")) res.bank = val;
+                            else if (labelText.includes("t-bill") || labelText.includes("tbill")) res.tbill = val;
+                        }
+                    }
+                }
+            }
+            return res;
+        } catch (e) { return { deposit: 0, bank: 0, tbill: 0 }; }
+    }
+
+    function populateDropdowns() {
+        fromDate.innerHTML = "";
+        toDate.innerHTML = "";
+        if (!dataset.length) return;
+        dataset.forEach(d => {
+            fromDate.add(new Option(d.date, d.date));
+            toDate.add(new Option(d.date, d.date));
+        });
+        if (dataset.length) toDate.selectedIndex = dataset.length - 1;
+    }
+
+    function populateSheetDropdown() {
+        sheetSelect.innerHTML = "";
+        if (!workbook) return;
+        workbook.SheetNames.forEach(n => { sheetSelect.add(new Option(n, n)); });
+        if (sheetSelect.options.length) sheetSelect.selectedIndex = sheetSelect.options.length - 1;
+    }
+
+    function getFiltered() {
+        if (!dataset.length) return [];
+        const fromIdx = Math.max(0, fromDate.selectedIndex);
+        const toIdx = Math.min(dataset.length - 1, toDate.selectedIndex);
+        return dataset.slice(fromIdx, toIdx + 1);
+    }
+
+    function renderAll() {
+        if (!workbook) {
+            document.getElementById("kpis").innerHTML = `<div class="empty-state"><i class="fas fa-chart-line" style="font-size: 48px; color: #3b82f6;"></i><h3>Welcome to RMD DASHBOARD</h3><p>Upload an Excel file (.xlsx, .xlsm, .xls) to begin analysis</p></div>`;
+            document.getElementById("chartSection").innerHTML = "";
+            document.getElementById("sheetTable").innerHTML = "";
+            return;
+        }
+        document.getElementById("kpis").innerHTML = "";
+        document.getElementById("chartSection").innerHTML = "";
+        document.getElementById("sheetTable").innerHTML = "";
+        if (modeToggle.checked) renderSummary();
+        else renderSnapshot();
+    }
+
+    function renderSummary() {
+        const data = getFiltered();
+        if (!data.length) {
+            document.getElementById("kpis").innerHTML = `<div class="empty-state">No data available for selected range</div>`;
+            return;
+        }
+        const last = data.at(-1);
+        const prev = data.at(-2) || last;
+        
+        const netNPLRatio = last.loans > 0 ? ((last.netNPL / last.loans) * 100) : 0;
+        
+        document.getElementById("kpis").innerHTML = `
+            <div class="kpi-grid">
+                ${premiumCard("💰 Deposits", last.deposits, prev.deposits, false, "fas fa-coins")}
+                ${premiumCard("🏦 Loans Portfolio", last.loans, prev.loans, false, "fas fa-chart-line")}
+                ${premiumCard("⚠️ NPL Amount", last.npl, prev.npl, false, "fas fa-exclamation-triangle")}
+                ${premiumCard("📉 NPL Ratio %", (last.nplRatio*100).toFixed(2), (prev.nplRatio*100).toFixed(2), true, "fas fa-percent")}
+                ${premiumCard("💧 Liquidity %", (last.liq*100).toFixed(2), (prev.liq*100).toFixed(2), true, "fas fa-tint")}
+                ${premiumCard("👥 Deposit Accounts", last.depAcc, prev.depAcc, false, "fas fa-users")}
+                ${premiumCard("📑 Loan Accounts", last.loanAcc, prev.loanAcc, false, "fas fa-file-invoice")}
+                ${premiumCard("💵 File Forwarded", last.forwarded, prev.forwarded, false, "fas fa-file-forward")}
+                ${premiumCard("💸 File Renewed", last.renewed, prev.renewed, false, "fas fa-sync-alt")}
+                ${premiumCard("🔝 Additional Topup/ Memo", last.adDitionalTopUp, prev.adDitionalTopUp, false, "fas fa-sync-alt")}
+                ${premiumCard("🏛️ Share Capital", last.shareCapital, prev.shareCapital, false, "fas fa-building")}
+                ${premiumCard("⚠️ Net NPL to Loans %", (last.netNPLtoTotalloan*100).toFixed(2), (prev.netNPLtoTotalloan*100).toFixed(2), true, "fas fa-chart-simple")}
+                ${premiumCard("🛡️ Provision Coverage %", (last.totalLLPtoTotalloan*100).toFixed(2), (prev.totalLLPtoTotalloan*100).toFixed(2), true, "fas fa-shield-alt")}
+            </div>
+        `;
+
+        const labels = data.map(x => x.date);
+        const container = document.getElementById("chartSection");
+        
+        const charts = [
+            { title: "📈 Deposit Trend", data: data.map(x => x.deposits), color: '#42f5e3' },
+            { title: "📊 Loan Growth", data: data.map(x => x.loans), color: '#f5b042' },
+            { title: "⚠️ NPL % Trend", data: data.map(x => x.nplRatio * 100), color: '#ff768a' },
+            { title: "💧 Liquidity Ratio Trend", data: data.map(x => x.liq * 100), color: '#6c5ce7' },
+            { title: "👥 Deposit Accounts Trend", data: data.map(x => x.depAcc), color: '#a29bfe' },
+            { title: "📑 Loan Accounts Trend", data: data.map(x => x.loanAcc), color: '#fd79a8' },
+            { title: "📤 File Forwarded Trend", data: data.map(x => x.forwarded), color: '#00cec9' },
+            { title: "🔄 File Renewed Trend", data: data.map(x => x.renewed), color: '#e84393' },
+            { title: "🔝 Loan Topup Trend", data: data.map(x => x.totalLLPtoTotalloan), color: '#e84393' },
+            { title: "🏛️ Share Capital Trend", data: data.map(x => x.shareCapital), color: '#f1c40f' },
+            { title: "📉 Net NPL to Loans %", data: data.map(x => x.netNPLtoTotalloan), color: '#ff9ff3' },
+            { title: "🛡️ Provision Coverage (LLP/NPL) %", data: data.map(x => x.totalLLPtoTotalloan), color: '#54a0ff' }
+        ];
+        
+        charts.forEach(chart => {
+            const wrapper = document.createElement("div");
+            wrapper.className = "chart-lux-card";
+            const canvas = document.createElement("canvas");
+            wrapper.appendChild(canvas);
+            container.appendChild(wrapper);
+            new Chart(canvas, {
+                type: 'line',
+                data: { labels, datasets: [{ label: chart.title, data: chart.data, borderColor: chart.color, backgroundColor: chart.color + '20', borderWidth: 2.5, pointRadius: 3, tension: 0.3, fill: true }] },
+                options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#eef5ff' } } } }
+            });
+        });
+        
+        const waccWrapper = document.createElement("div");
+        waccWrapper.className = "chart-lux-card";
+        const waccCanvas = document.createElement("canvas");
+        waccWrapper.appendChild(waccCanvas);
+        container.appendChild(waccWrapper);
+        new Chart(waccCanvas, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    { label: "Deposit WACC", data: data.map(x => x.waccDeposit * 100), borderColor: '#0ff1ce', backgroundColor: '#0ff1ce25', tension: 0.3, fill: true },
+                    { label: "BanKs WACC", data: data.map(x => x.waccBanKs * 100), borderColor: '#ff9966', backgroundColor: '#ff996625', tension: 0.3, fill: true },
+                    { label: "T-Bills WACC", data: data.map(x => x.waccTbill * 100), borderColor: '#f9ca24', backgroundColor: '#f9ca2425', tension: 0.3, fill: true }
+                   
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#ecf5ff' } } } }
+        });
+
+        const wormWrapper = document.createElement("div");
+        wormWrapper.className = "chart-lux-card";
+        const wormCanvas = document.createElement("canvas");
+        wormWrapper.appendChild(wormCanvas);
+        container.appendChild(wormWrapper);
+        new Chart(wormCanvas, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    { label: "📂 File Forwarded (Worm)", data: data.map(x => x.forwarded), borderColor: '#00b894', backgroundColor: '#00b89420', borderWidth: 3, pointRadius: 4, tension: 0.2, fill: false },
+                    { label: "🔄 File Renewed (Worm)", data: data.map(x => x.renewed), borderColor: '#e17055', backgroundColor: '#e1705520', borderWidth: 3, pointRadius: 4, tension: 0.2, fill: false }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#fff' } }, tooltip: { mode: 'index', intersect: false } }, scales: { y: { title: { display: true, text: 'Count', color: '#ccc' } } } }
+        });
+    }
+
+    function premiumCard(title, value, prevVal, isPct, icon) {
+        let numVal = parseFloat(value);
+        let numPrev = parseFloat(prevVal);
+        let diff = numVal - numPrev;
+        let trendClass = diff >= 0 ? "trend-up" : "trend-down";
+        let arrow = diff >= 0 ? "↑" : "↓";
+        let formattedDiff = (isPct ? Math.abs(diff).toFixed(2) + "%" : Math.abs(diff).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        let displayValue = isPct ? value + "%" : (isNaN(value) ? "0" : Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        return `<div class="premium-card"><div class="card-title"><i class="${icon}" style="color:#56c8ff;"></i> ${title}</div><div class="card-value">${displayValue}</div>${prevVal !== undefined && prevVal !== 0 && !isNaN(prevVal) ? `<div class="trend ${trendClass}"><span>${arrow} ${formattedDiff}</span> vs previous</div>` : `<div class="trend">baseline</div>`}</div>`;
+    }
+
+    function renderSnapshot() {
+        let sheetName = sheetSelect.value;
+        if (!workbook || !sheetName) return;
+        const sheet = workbook.Sheets[sheetName];
+        if (!sheet) return;
+        let json = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+        if (!json || json.length === 0) {
+            document.getElementById("sheetTable").innerHTML = `<div class="empty-state">✨ No data available in this sheet ✨</div>`;
+            return;
+        }
+        const headers = json[0] || [];
+        let dataRows = json.slice(1).filter(row => row.some(cell => cell !== "" && cell !== undefined && cell !== null));
+        const nonBlankColumns = [];
+        for (let colIdx = 0; colIdx < headers.length; colIdx++) {
+            let hasData = false;
+            for (let row of dataRows) {
+                if (row[colIdx] !== undefined && row[colIdx] !== null && row[colIdx] !== "" && row[colIdx] !== " ") { hasData = true; break; }
+            }
+            if (hasData || colIdx === 0) nonBlankColumns.push(colIdx);
+        }
+        const filteredHeaders = nonBlankColumns.map(idx => headers[idx]);
+        const filteredDataRows = dataRows.map(row => nonBlankColumns.map(idx => row[idx]));
+        const isSummarySheet = filteredDataRows.length <= 20 && filteredHeaders.length <= 15;
+        let html = `<div class="snapshot-header"><div class="snapshot-title"><i class="fas fa-table"></i><h3>${isSummarySheet ? '📊 Summary View' : '📋 Detailed Data View'}</h3></div><div class="sheet-badge"><i class="fas fa-file-alt"></i> ${sheetName} • ${filteredDataRows.length} records • ${filteredHeaders.length} fields</div></div><div class="premium-table-container"><div class="table-wrapper"><table class="premium-table"><thead><tr>`;
+        filteredHeaders.forEach((header, idx) => {
+            const headerText = header || `Column ${idx + 1}`;
+            const isNumericHeader = /(amount|balance|rate|ratio|percent|wacc|npl|liq|deposit|loan|value|total|sum|avg|forward|renewed|capital|provision)/i.test(headerText);
+            const align = idx === 0 ? 'left' : (isNumericHeader ? 'right' : 'left');
+            html += `<th style="text-align: ${align}">${escapeHtml(headerText)}</th>`;
+        });
+        html += `</tr></thead><tbody>`;
+        let stats = { numericCount: 0, positiveCount: 0, negativeCount: 0, percentCount: 0 };
+        filteredDataRows.forEach((row) => {
+            if (row.length === 0) return;
+            html += `<tr>`;
+            row.forEach((cell, colIdx) => {
+                let val = (cell === undefined || cell === null) ? "" : cell;
+                const headerName = filteredHeaders[colIdx] ? String(filteredHeaders[colIdx]).toLowerCase() : "";
+                const isFirstCol = colIdx === 0;
+                let displayValue = val;
+                let textAlign = isFirstCol ? 'left' : 'right';
+                let valueClass = '';
+                if (typeof val === 'number' || (!isNaN(val) && val !== "" && val !== null && val !== " ")) {
+                    const numVal = parseFloat(val);
+                    stats.numericCount++;
+                    const isPercentage = headerName.includes('%') || headerName.includes('ratio') || headerName.includes('rate') || headerName.includes('wacc') || headerName.includes('npl') || headerName.includes('liq') || (numVal > 0 && numVal < 1.5 && !headerName.includes('account') && !headerName.includes('count'));
+                    if (isPercentage) {
+                        displayValue = (numVal * 100).toFixed(2) + "%";
+                        valueClass = "percentage-value numeric-value";
+                        stats.percentCount++;
+                    } else if (headerName.includes('amount') || headerName.includes('balance') || headerName.includes('deposit') || headerName.includes('loan') || headerName.includes('capital') || Math.abs(numVal) > 1000) {
+                        displayValue = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(numVal);
+                        valueClass = "currency-value numeric-value";
+                    } else {
+                        displayValue = new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(numVal);
+                        valueClass = "numeric-value";
+                    }
+                    if (headerName.includes('growth') || headerName.includes('change') || headerName.includes('trend')) {
+                        if (numVal > 0) { valueClass += " positive-value"; stats.positiveCount++; }
+                        else if (numVal < 0) { valueClass += " negative-value"; stats.negativeCount++; }
+                    }
+                    textAlign = 'right';
+                } else if (typeof val === 'string' && val.trim() !== "") {
+                    displayValue = val;
+                    textAlign = isFirstCol ? 'left' : 'left';
+                    valueClass = "text-primary";
+                } else {
+                    displayValue = "—";
+                    textAlign = isFirstCol ? 'left' : 'center';
+                }
+                html += `<td style="text-align: ${textAlign}" class="${valueClass}">${escapeHtml(String(displayValue))}</td>`;
+            });
+            html += `</tr>`;
+        });
+        html += `</tbody></table></div><div class="table-stats"><div class="stat-item"><i class="fas fa-chart-simple"></i><span>${filteredDataRows.length} rows × ${filteredHeaders.length} columns</span></div><div class="stat-item"><i class="fas fa-calculator"></i><span>Numeric fields: ${stats.numericCount}</span></div>${stats.percentCount > 0 ? `<div class="stat-item"><i class="fas fa-percent" style="color: #ffd966;"></i><span>Ratios: ${stats.percentCount}</span></div>` : ''}${stats.positiveCount > 0 ? `<div class="stat-item"><i class="fas fa-arrow-up" style="color: #2effb0;"></i><span>Positive: ${stats.positiveCount}</span></div>` : ''}${stats.negativeCount > 0 ? `<div class="stat-item"><i class="fas fa-arrow-down" style="color: #ff6a6a;"></i><span>Negative: ${stats.negativeCount}</span></div>` : ''}<div class="stat-item"><i class="fas fa-mouse-pointer"></i><span>Hover rows</span></div></div></div>`;
+        document.getElementById("sheetTable").innerHTML = html;
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>
+</body>
+</html>
