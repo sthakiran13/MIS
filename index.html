@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-<title>Risk Management Depart | Financial MIS Dashboard Trend Analysis</title>
+    <title>Risk Depart | Quantum Risk Intelligence</title>
     <link rel="icon" type="image/png" href="https://scontent.fktm21-2.fna.fbcdn.net/v/t39.30808-6/347811471_733097998551692_7711165472110549120_n.jpg?_nc_cat=105&ccb=1-7&_nc_sid=1d70fc&_nc_ohc=R01Dd6Pzi2AQ7kNvwFdjkVd&_nc_oc=Adr_XMo9JLZ9qPesdTzIHAmax244XNsg0BfAd7QyyRY0Hlq3IXgjCSTDqBDOVsReYsKHgIpsBUwi4kf_g5xs2AUW&_nc_zt=23&_nc_ht=scontent.fktm21-2.fna&_nc_gid=bdW__kaZFoqZDH8NdG6aAQ&_nc_ss=7a30f&oh=00_AfxDToFoMSjTye7OyJHn_af0ITK2c5qiD5X4a4erT--5Sg&oe=69C48323">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
@@ -213,7 +213,7 @@
             gap: 12px;
         }
         .card-value {
-            font-size: 1.9rem;
+            font-size: 1.8rem;
             font-weight: 800;
             background: linear-gradient(135deg, #ffffff, #d4edff);
             -webkit-background-clip: text;
@@ -224,10 +224,11 @@
             line-height: 1.2;
             word-break: break-word;
             overflow-wrap: break-word;
+            white-space: normal;
         }
         /* Handle very large numbers with smaller font */
         .card-value.large-number {
-            font-size: 1.5rem;
+            font-size: 1.4rem;
         }
         .trend {
             font-size: 0.75rem;
@@ -330,8 +331,8 @@
         }
         @media (max-width: 768px) {
             body { padding: 18px; }
-            .card-value { font-size: 1.5rem; }
-            .card-value.large-number { font-size: 1.2rem; }
+            .card-value { font-size: 1.4rem; }
+            .card-value.large-number { font-size: 1.1rem; }
             .chart-grid { grid-template-columns: 1fr; }
             .blinking-image { height: 38px; }
             .kpi-grid { grid-template-columns: 1fr; }
@@ -349,7 +350,7 @@
 <div class="header">
     <div class="brand">
         <img src="https://ncbl.coop/ncbl/images/ncbllogo.png" alt="NCBL">
-        <h2><i class="fas fa-chart-line" style="margin-right: 10px; color:#3b82f6;"></i>Risk Management Department · FINANCIAL MIS DASHBOARD</h2>
+        <h2><i class="fas fa-chart-line" style="margin-right: 10px; color:#3b82f6;"></i>Risk Management · Quantum Nexus</h2>
     </div>
     <div class="header-right-decoration">
         <div class="controls">
@@ -383,7 +384,7 @@
 <div id="sheetTable"></div>
 
 <script>
-   let workbook, dataset = [];
+    let workbook, dataset = [];
     const nepaliMonths = ["Shrawan", "Bhadra", "Ashwin", "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra", "Baisakh", "Jestha", "Ashad"];
     const monthToIndex = {};
     nepaliMonths.forEach((m, idx) => { monthToIndex[m.toLowerCase()] = idx; });
@@ -499,7 +500,7 @@
                     if (cellText === "deposits" || cellText === "deposit") {
                         const valCell = sheet[XLSX.utils.encode_cell({ r: R, c: C+1 })];
                         if (valCell && valCell.v !== undefined) { let v = parseFloat(String(valCell.v).replace('%','').replace(/,/g,'')); if(!isNaN(v)) { if(String(valCell.v).includes('%')) v/=100; res.deposit=v; } }
-                    } else if (cellText === "bankwacc") {
+                    } else if (cellText === "banks") {
                         const valCell = sheet[XLSX.utils.encode_cell({ r: R, c: C+1 })];
                         if (valCell && valCell.v !== undefined) { let v = parseFloat(String(valCell.v).replace('%','')); if(!isNaN(v)) { if(String(valCell.v).includes('%')) v/=100; res.bank=v; } }
                     } else if (cellText.includes("t-bill") || cellText.includes("tbills")) {
@@ -552,7 +553,7 @@
 
     function renderAll() {
         if (!workbook) {
-            document.getElementById("kpis").innerHTML = `<div class="empty-state"><i class="fas fa-chart-line" style="font-size: 58px; color:#3b82f6;"></i><h2 style="margin: 20px 0 10px;">RMD Financial Dashboard</h2><p style="opacity:0.8">Upload Excel file with Nepali month sheets (Shrawan, Bhadra...)</p><div style="margin-top: 20px;"><i class="fas fa-arrow-up"></i> Click "Upload Excel" to begin</div></div>`;
+            document.getElementById("kpis").innerHTML = `<div class="empty-state"><i class="fas fa-chart-line" style="font-size: 58px; color:#3b82f6;"></i><h2 style="margin: 20px 0 10px;">Aurora Financial Core</h2><p style="opacity:0.8">Upload Excel file with Nepali month sheets (Shrawan, Bhadra...)</p><div style="margin-top: 20px;"><i class="fas fa-arrow-up"></i> Click "Upload Excel" to begin</div></div>`;
             document.getElementById("chartSection").innerHTML = ""; document.getElementById("sheetTable").innerHTML = ""; return;
         }
         document.getElementById("kpis").innerHTML = ""; document.getElementById("chartSection").innerHTML = ""; document.getElementById("sheetTable").innerHTML = "";
@@ -566,10 +567,10 @@
         let trendClass = diff >= 0 ? "trend-up" : "trend-down";
         let arrow = diff >= 0 ? "↑" : "↓";
         
-        // Format the value properly - for percentages, don't multiply again
+        // Format the value properly - show full numbers without abbreviations
         let displayValue;
         if (isPct) {
-            // Value is already in percentage format (e.g., 0.15 = 15%)
+            // Value is in decimal (e.g., 0.15 = 15%)
             displayValue = (numVal * 100).toFixed(2) + "%";
         } else {
             displayValue = formatNumber(numVal, false);
@@ -582,8 +583,8 @@
             formattedDiff = formatNumber(Math.abs(diff), false);
         }
         
-        // Check if value is large to apply smaller font class
-        const isLargeValue = !isPct && numVal > 10000000;
+        // Check if value is very large to apply smaller font class
+        const isLargeValue = !isPct && String(displayValue).length > 15;
         const largeClass = isLargeValue ? 'large-number' : '';
         
         return `<div class="premium-card"><div class="card-title"><i class="${icon}" style="color:#5bc0ff;"></i> ${title}</div><div class="card-value ${largeClass}">${displayValue}</div>${(prevVal !== undefined && prevVal !== 0 && !isNaN(prevVal)) ? `<div class="trend ${trendClass}"><span>${arrow} ${formattedDiff}</span> vs prior</div>` : '<div class="trend">baseline</div>'}</div>`;
@@ -598,7 +599,7 @@
         kpiHtml += premiumCard("🏦 Loans Portfolio", last.loans, prev.loans, false, "fas fa-chart-line");
         kpiHtml += premiumCard("⚠️ NPL Amount", last.npl, prev.npl, false, "fas fa-exclamation-triangle");
         kpiHtml += premiumCard("📉 NPL Ratio %", last.nplRatio, prev.nplRatio, true, "fas fa-percent");
-        // FIXED: Liquidity - don't multiply by 100 if it's already a percentage
+        // FIXED: Liquidity - using proper percentage formatting (multiply by 100 for display)
         kpiHtml += premiumCard("💧 Liquidity %", last.liq, prev.liq, true, "fas fa-tint");
         kpiHtml += premiumCard("👥 Deposit Accounts", last.depAcc, prev.depAcc, false, "fas fa-users");
         kpiHtml += premiumCard("📑 Loan Accounts", last.loanAcc, prev.loanAcc, false, "fas fa-file-invoice");
@@ -667,7 +668,9 @@
                         display = (num*100).toFixed(2)+"%"; style="percentage-value numeric-value"; align="right";
                     } else if(hdr.includes('amount')||hdr.includes('balance')||hdr.includes('deposit')||hdr.includes('loan')||Math.abs(num)>1000){
                         display = formatNumber(num, false); style="currency-value numeric-value"; align="right";
-                    } else { display = formatNumber(num, false); style="numeric-value"; align="right"; }
+                    } else { 
+                        display = formatNumber(num, false); style="numeric-value"; align="right";
+                    }
                 } else if(typeof val === 'string' && val.trim()!==""){ display = val; style="text-primary"; align="left"; }
                 else { display="—"; align="center"; }
                 html+=`<td style="text-align:${align}" class="${style}">${escapeHtml(String(display))}</td>`;
